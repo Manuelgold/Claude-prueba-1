@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111114;
+    --surface2: #18181d;
+    --border: #2a2a33;
+    --accent: #e8ff47;
+    --accent2: #47c8ff;
+    --accent3: #ff8c47;
+    --text: #e8e8f0;
+    --muted: #666680;
+    --danger: #ff4757;
+    --success: #47ffb8;
+    --radius: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Fira Code', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    background: var(--surface); position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-dot { width: 9px; height: 9px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+  .badge {
+    font-size: 10px; padding: 3px 9px; border-radius: 20px;
+    background: rgba(232,255,71,0.12); color: var(--accent);
+    border: 1px solid rgba(232,255,71,0.25); font-weight: 500; text-transform: uppercase;
+  }
+
+  /* API KEY INPUT */
+  .apikey-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 20px; background: rgba(255,71,87,0.08);
+    border-bottom: 1px solid rgba(255,71,87,0.2);
+    font-size: 11px;
+  }
+  .apikey-bar label { color: var(--danger); flex-shrink: 0; }
+  .apikey-input {
+    flex: 1; background: var(--surface); border: 1px solid rgba(255,71,87,0.3);
+    color: var(--text); font-family: 'Fira Code', monospace; font-size: 11px;
+    padding: 5px 10px; border-radius: var(--radius); outline: none;
+  }
+  .apikey-input:focus { border-color: var(--danger); }
+  .apikey-bar.ok { background: rgba(71,255,184,0.05); border-bottom-color: rgba(71,255,184,0.2); }
+  .apikey-bar.ok label { color: var(--success); }
+  .apikey-input.ok { border-color: rgba(71,255,184,0.3); }
+  .btn-save-key {
+    background: var(--danger); color: #fff; border: none;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 10px;
+    padding: 5px 12px; border-radius: var(--radius); cursor: pointer;
+    text-transform: uppercase; transition: all .15s;
+  }
+  .btn-save-key:hover { opacity: .85; }
+
+  /* LAYOUT */
+  .layout { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 100px); }
+
+  .panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+  .panel:last-child { border-right: none; }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface2); flex-shrink: 0;
+  }
+  .panel-label {
+    font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .panel-label .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); }
+
+  .template-bar {
+    display: flex; gap: 5px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap; background: var(--surface2); flex-shrink: 0;
+  }
+  .chip {
+    padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer;
+    font-family: 'Fira Code', monospace; font-size: 10px; transition: all .15s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  .variables-section {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    background: rgba(71,200,255,0.03); flex-shrink: 0;
+  }
+  .var-title { font-size: 9px; color: var(--accent2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .var-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .var-item { display: flex; flex-direction: column; gap: 2px; }
+  .var-label { font-size: 9px; color: var(--muted); }
+  .var-input {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    font-family: 'Fira Code', monospace; font-size: 11px;
+    padding: 4px 8px; border-radius: var(--radius); outline: none;
+  }
+  .var-input:focus { border-color: var(--accent2); }
+
+  .editor-wrap { flex: 1; position: relative; overflow: hidden; }
+  .line-numbers {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 34px;
+    padding: 12px 6px 12px 0; background: var(--surface2);
+    border-right: 1px solid var(--border); text-align: right;
+    color: var(--border); font-size: 10px; line-height: 19px;
+    user-select: none; overflow: hidden; pointer-events: none;
+  }
+  #promptEditor {
+    width: 100%; height: 100%; background: var(--bg); border: none;
+    color: var(--text); font-family: 'Fira Code', monospace; font-size: 12px;
+    line-height: 19px; padding: 12px 12px 12px 46px; resize: none; outline: none; overflow-y: auto;
+  }
+  #promptEditor::placeholder { color: var(--muted); }
+
+  .stats-bar {
+    display: flex; gap: 12px; padding: 5px 16px;
+    border-top: 1px solid var(--border); background: var(--surface2); flex-shrink: 0;
+  }
+  .stat { font-size: 9px; color: var(--muted); }
+  .stat span { color: var(--accent); }
+
+  /* RIGHT PANEL */
+  .mode-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; }
+  .mode-tab {
+    padding: 8px 11px; font-size: 10px; color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all .15s; white-space: nowrap;
+    font-family: 'Fira Code', monospace; background: transparent;
+    border-top: none; border-left: none; border-right: none;
+  }
+  .mode-tab:hover { color: var(--text); }
+  .mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .ai-controls {
+    padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border); background: var(--surface2); flex-wrap: wrap; flex-shrink: 0;
+  }
+  .slider-wrap { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); }
+  input[type="range"] { -webkit-appearance: none; width: 60px; height: 3px; background: var(--border); border-radius: 2px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .temp-val { color: var(--accent); font-weight: 500; min-width: 22px; }
+
+  .btn-run {
+    margin-left: auto; background: var(--accent); color: #000;
+    border: none; font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 11px; padding: 7px 18px; border-radius: var(--radius);
+    cursor: pointer; transition: all .15s; text-transform: uppercase;
+  }
+  .btn-run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,255,71,.3); }
+  .btn-run:disabled { opacity: .4; cursor: not-allowed; }
+
+  .btn-clear { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: 'Fira Code', monospace; font-size: 10px; padding: 5px 10px; border-radius: var(--radius); cursor: pointer; transition: all .15s; }
+  .btn-clear:hover { border-color: var(--danger); color: var(--danger); }
+
+  .btn-copy { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: 'Fira Code', monospace; font-size: 10px; padding: 4px 10px; border-radius: var(--radius); cursor: pointer; transition: all .15s; }
+  .btn-copy:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .preview-bar {
+    padding: 7px 16px; border-bottom: 1px solid var(--border);
+    font-size: 10px; color: var(--muted); background: rgba(232,255,71,0.03); flex-shrink: 0;
+    display: flex; gap: 6px;
+  }
+  .preview-bar-label { color: var(--accent); flex-shrink: 0; }
+  #promptPreview { color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  .scene-area { display: none; flex: 1; flex-direction: column; }
+  .scene-area.active { display: flex; }
+  .scene-textarea { flex: 1; background: var(--bg); border: none; color: var(--text); font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.7; padding: 14px; resize: none; outline: none; }
+  .scene-textarea::placeholder { color: var(--muted); }
+
+  .response-wrap { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .loading-wrap { display: none; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 14px; }
+  .loading-wrap.active { display: flex; }
+  .loader { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .loading-text { font-size: 10px; color: var(--muted); animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: var(--muted); text-align: center; gap: 10px; }
+  .empty-icon { font-size: 32px; opacity: .25; }
+  .empty-text { font-size: 11px; line-height: 1.7; }
+
+  .response-area { flex: 1; overflow-y: auto; padding: 16px; display: none; }
+  .response-content { display: none; animation: fadeIn .3s ease; }
+  .response-content.visible { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+  .response-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .response-badge { font-size: 9px; padding: 3px 8px; border-radius: 20px; font-weight: 500; text-transform: uppercase; }
+  .badge-success { background: rgba(71,255,184,.1); color: var(--success); border: 1px solid rgba(71,255,184,.25); }
+  .badge-error { background: rgba(255,71,87,.1); color: var(--danger); border: 1px solid rgba(255,71,87,.25); }
+  .response-time { font-size: 9px; color: var(--muted); margin-left: auto; }
+  .response-text { font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.8; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+
+  .history-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; cursor: pointer; background: var(--surface2); border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); user-select: none; flex-shrink: 0; }
+  .history-header:hover { color: var(--text); }
+  .history-panel { max-height: 0; overflow: hidden; transition: max-height .3s ease; flex-shrink: 0; }
+  .history-panel.open { max-height: 150px; overflow-y: auto; }
+  .history-item { padding: 8px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; display: flex; align-items: center; gap: 8px; }
+  .history-item:hover { background: rgba(255,255,255,0.03); }
+  .history-prompt { font-size: 10px; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-time { font-size: 9px; color: var(--muted); flex-shrink: 0; }
+
+  /* VideoInu btn */
+  .btn-videoinu {
+    background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff;
+    border: none; font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 10px; padding: 5px 12px; border-radius: var(--radius);
+    cursor: pointer; transition: all .15s; text-transform: uppercase;
+  }
+  .btn-videoinu:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(168,85,247,.4); }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media(max-width: 700px) {
+    .layout { grid-template-columns: 1fr; height: auto; }
+    .panel { height: 60vh; }
+    .var-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>Prompt Studio</div>
+  <div class="badge">✦ Free HSFC</div>
+</header>
+
+<!-- API KEY BAR -->
+<div class="apikey-bar" id="apikeyBar">
+  <label>⚠ API Key:</label>
+  <input class="apikey-input" id="apikeyInput" type="password" placeholder="sk-ant-api03-...">
+  <button class="btn-save-key" onclick="saveKey()">Guardar</button>
+</div>
+
+<div class="layout">
+
+  <!-- PANEL IZQUIERDO: EDITOR -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-label"><span class="dot"></span> Editor de Prompt</div>
+      <button class="btn-videoinu" onclick="openVideoInu()">🎬 WanVideo</button>
+    </div>
+
+    <div class="template-bar">
+      <button class="chip" onclick="loadTemplate('imagen')">🖼 Imagen</button>
+      <button class="chip" onclick="loadTemplate('video')">🎬 Video</button>
+      <button class="chip" onclick="loadTemplate('personaje')">🧍 Personaje</button>
+      <button class="chip" onclick="loadTemplate('escena')">🌆 Escena</button>
+      <button class="chip" onclick="loadTemplate('cinematico')">🎥 Cin.</button>
+      <button class="chip" onclick="loadTemplate('vacio')">＋ Vacío</button>
+    </div>
+
+    <div class="variables-section">
+      <div class="var-title">// Variables dinámicas</div>
+      <div class="var-grid">
+        <div class="var-item"><div class="var-label">{sujeto}</div><input class="var-input" id="var_sujeto" placeholder="woman, 40s" oninput="updatePreview()"></div>
+        <div class="var-item"><div class="var-label">{escenario}</div><input class="var-input" id="var_escenario" placeholder="city rooftop" oninput="updatePreview()"></div>
+        <div class="var-item"><div class="var-label">{estilo}</div><input class="var-input" id="var_estilo" placeholder="cinematic, 8K" oninput="updatePreview()"></div>
+        <div class="var-item"><div class="var-label">{iluminacion}</div><input class="var-input" id="var_iluminacion" placeholder="golden hour" oninput="updatePreview()"></div>
+      </div>
+    </div>
+
+    <div class="editor-wrap">
+      <div class="line-numbers" id="lineNumbers">1</div>
+      <textarea id="promptEditor" placeholder="// Escribe tu prompt aquí..." oninput="onEditorInput()" spellcheck="false"></textarea>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat">chars: <span id="charCount">0</span></div>
+      <div class="stat">words: <span id="wordCount">0</span></div>
+      <div class="stat">tokens≈<span id="tokenCount">0</span></div>
+    </div>
+  </div>
+
+  <!-- PANEL DERECHO: IA -->
+  <div class="panel" style="background:var(--surface)">
+    <div class="panel-header">
+      <div class="panel-label"><span class="dot" style="background:var(--accent)"></span> Análisis IA</div>
+      <button class="btn-copy" id="copyBtn" onclick="copyResponse()" style="display:none">Copiar</button>
+    </div>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="setMode('mejorar',this)">✦ Mejorar</button>
+      <button class="mode-tab" onclick="setMode('analizar',this)">⚡ Analizar</button>
+      <button class="mode-tab" onclick="setMode('traducir',this)">🌐 Traducir</button>
+      <button class="mode-tab" onclick="setMode('variantes',this)">🔀 Variantes</button>
+      <button class="mode-tab" onclick="setMode('negativo',this)">⛔ Negativo</button>
+      <button class="mode-tab" onclick="setMode('escena',this)">🎬 Escena</button>
+      <button class="mode-tab" onclick="setMode('libre',this)">💬 Chat</button>
+    </div>
+
+    <div class="ai-controls">
+      <div class="slider-wrap">
+        temp: <input type="range" id="tempSlider" min="0" max="10" value="7" oninput="updateTemp()">
+        <span class="temp-val" id="tempVal">0.7</span>
+      </div>
+      <button class="btn-clear" onclick="clearAll()">Limpiar</button>
+      <button class="btn-run" id="runBtn" onclick="runPrompt()">▶ Ejecutar</button>
+    </div>
+
+    <div class="preview-bar">
+      <span class="preview-bar-label">→</span>
+      <span id="promptPreview">Escribe un prompt...</span>
+    </div>
+
+    <div class="scene-area" id="sceneArea">
+      <textarea class="scene-textarea" id="sceneDescribe" placeholder="Describe la escena de tu vídeo en español...
+
+Ejemplo: Una mujer camina por un pasillo oscuro, se para y mira a cámara. Luz de neón azul.
+
+→ Claude lo convierte en prompt técnico para WanGP / Kling."></textarea>
+    </div>
+
+    <div class="response-wrap" id="responseWrap">
+      <div class="loading-wrap" id="loadingWrap">
+        <div class="loader"></div>
+        <div class="loading-text">Procesando...</div>
+      </div>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">◈</div>
+        <div class="empty-text">Elige modo, escribe<br>tu prompt y pulsa Ejecutar</div>
+      </div>
+      <div class="response-area" id="responseArea">
+        <div class="response-content" id="responseContent">
+          <div class="response-meta">
+            <div class="response-badge badge-success" id="responseBadge">✓ OK</div>
+            <div class="response-time" id="responseTime"></div>
+          </div>
+          <div class="response-text" id="responseText"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="history-header" onclick="toggleHistory()">
+      <span>📋 Historial (<span id="histCount">0</span>)</span>
+      <span id="histArrow">▾</span>
+    </div>
+    <div class="history-panel" id="historyPanel">
+      <div id="historyList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TEMPLATES = {
+    imagen: `{sujeto}, {escenario}, {estilo}, {iluminacion} lighting, highly detailed, photorealistic, sharp focus`,
+    video: `Cinematic shot of {sujeto} in {escenario}. Camera slowly pushes in. {iluminacion} lighting. {estilo}. 4K, film grain.`,
+    personaje: `Portrait of {sujeto}. {escenario} background, bokeh. {iluminacion} light. Detailed skin texture. {estilo}. 85mm lens.`,
+    escena: `Wide shot. {escenario}. {sujeto} in frame. Atmospheric depth. {iluminacion}. {estilo}. Hyperrealistic.`,
+    cinematico: `{sujeto}, {escenario}. {iluminacion} side lighting. Anamorphic lens flares. {estilo}. Teal and orange grade.`,
+    vacio: ``
+  };
+
+  const SYSTEM_PROMPTS = {
+    mejorar: `Eres experto en prompt engineering para imágenes y vídeo IA (Flux, Kling, WanVideo). Mejora el prompt haciéndolo más efectivo y cinematográfico. Devuelve SOLO el prompt mejorado. Añade "Negativo:" al final si aplica.`,
+    analizar: `Eres experto en prompt engineering. Analiza el prompt: puntos fuertes, debilidades, sugerencias. Responde en español.`,
+    traducir: `Traduce el prompt al inglés profesional optimizado para IA generativa. Devuelve SOLO el prompt traducido.`,
+    variantes: `Genera 3 variantes del prompt con enfoques diferentes. Numéralas.`,
+    negativo: `Crea un prompt negativo efectivo para Stable Diffusion/Flux. Devuelve SOLO el prompt negativo.`,
+    escena: `Convierte la descripción de escena en prompt técnico para WanVideo/Kling con movimientos de cámara y términos cinematográficos. Devuelve SOLO el prompt en inglés.`,
+    libre: `Eres asistente experto en IA generativa. Responde útil y conciso en español.`
+  };
+
+  let currentMode = 'mejorar';
+  let history = [];
+  let apiKey = localStorage.getItem('ps_apikey') || '';
+
+  // Init API key
+  if (apiKey) {
+    document.getElementById('apikeyInput').value = apiKey;
+    setKeyOK();
+  }
+
+  function saveKey() {
+    const key = document.getElementById('apikeyInput').value.trim();
+    if (!key.startsWith('sk-ant-')) { alert('La key debe empezar por sk-ant-'); return; }
+    apiKey = key;
+    localStorage.setItem('ps_apikey', key);
+    setKeyOK();
+  }
+
+  function setKeyOK() {
+    document.getElementById('apikeyBar').classList.add('ok');
+    document.getElementById('apikeyInput').classList.add('ok');
+    document.querySelector('.btn-save-key').textContent = '✓ OK';
+    document.querySelector('.apikey-bar label').textContent = '✓ API Key:';
+  }
+
+  function loadTemplate(key) {
+    document.getElementById('promptEditor').value = TEMPLATES[key] || '';
+    onEditorInput();
+  }
+
+  function onEditorInput() {
+    const text = document.getElementById('promptEditor').value;
+    document.getElementById('charCount').textContent = text.length;
+    document.getElementById('wordCount').textContent = text.trim() ? text.trim().split(/\s+/).length : 0;
+    document.getElementById('tokenCount').textContent = Math.ceil(text.length / 4);
+    updateLineNumbers(text.split('\n').length);
+    updatePreview();
+  }
+
+  function updateLineNumbers(lines) {
+    document.getElementById('lineNumbers').textContent = Array.from({length: lines}, (_, i) => i + 1).join('\n');
+  }
+
+  function updateTemp() {
+    document.getElementById('tempVal').textContent = (document.getElementById('tempSlider').value / 10).toFixed(1);
+  }
+
+  function getProcessedPrompt() {
+    let text = document.getElementById('promptEditor').value;
+    const vars = {
+      sujeto: document.getElementById('var_sujeto').value,
+      escenario: document.getElementById('var_escenario').value,
+      estilo: document.getElementById('var_estilo').value,
+      iluminacion: document.getElementById('var_iluminacion').value
+    };
+    for (const [k, v] of Object.entries(vars)) {
+      if (v) text = text.replaceAll(`{${k}}`, v);
+    }
+    return text;
+  }
+
+  function updatePreview() {
+    document.getElementById('promptPreview').textContent = getProcessedPrompt() || 'Escribe un prompt...';
+  }
+
+  function setMode(mode, el) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    const sceneArea = document.getElementById('sceneArea');
+    const responseWrap = document.getElementById('responseWrap');
+    if (mode === 'escena') {
+      sceneArea.classList.add('active');
+      responseWrap.style.display = 'none';
+    } else {
+      sceneArea.classList.remove('active');
+      responseWrap.style.display = 'flex';
+    }
+  }
+
+  async function runPrompt() {
+    if (!apiKey) { alert('Introduce tu API key primero'); return; }
+
+    let inputText;
+    if (currentMode === 'escena') {
+      inputText = document.getElementById('sceneDescribe').value.trim();
+      if (!inputText) { alert('Describe tu escena primero'); return; }
+    } else {
+      inputText = getProcessedPrompt().trim();
+      if (!inputText) { alert('Escribe un prompt primero'); return; }
+    }
+
+    document.getElementById('runBtn').disabled = true;
+    showLoading();
+
+    const temp = parseFloat(document.getElementById('tempVal').textContent);
+    const startTime = Date.now();
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: SYSTEM_PROMPTS[currentMode] || SYSTEM_PROMPTS.libre,
+          messages: [{ role: 'user', content: inputText }],
+          temperature: temp
+        })
+      });
+
+      const data = await response.json();
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+
+      if (data.content && data.content[0]) {
+        showResponse(data.content[0].text, `${elapsed}s · ${data.usage?.output_tokens||'?'} tokens`, true);
+        addToHistory(inputText, currentMode, elapsed);
+      } else {
+        throw new Error(data.error?.message || 'Error desconocido');
+      }
+    } catch(err) {
+      showResponse(`Error: ${err.message}`, '', false);
+    }
+
+    document.getElementById('runBtn').disabled = false;
+  }
+
+  function showLoading() {
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('responseArea').style.display = 'none';
+    document.getElementById('loadingWrap').classList.add('active');
+    document.getElementById('copyBtn').style.display = 'none';
+  }
+
+  function showResponse(text, timeText, success) {
+    document.getElementById('loadingWrap').classList.remove('active');
+    document.getElementById('responseArea').style.display = 'block';
+    document.getElementById('responseContent').classList.add('visible');
+    document.getElementById('responseText').textContent = text;
+    document.getElementById('responseBadge').className = `response-badge ${success?'badge-success':'badge-error'}`;
+    document.getElementById('responseBadge').textContent = success ? '✓ OK' : '✗ Error';
+    document.getElementById('responseTime').textContent = timeText;
+    if (success) document.getElementById('copyBtn').style.display = 'block';
+  }
+
+  function addToHistory(prompt, mode, time) {
+    history.unshift({ prompt, mode, time, ts: new Date().toLocaleTimeString() });
+    if (history.length > 20) history.pop();
+    document.getElementById('histCount').textContent = history.length;
+    document.getElementById('historyList').innerHTML = history.map((h, i) => `
+      <div class="history-item" onclick="loadFromHistory(${i})">
+        <div class="history-prompt">[${h.mode}] ${h.prompt}</div>
+        <div class="history-time">${h.ts}</div>
+      </div>
+    `).join('');
+  }
+
+  function loadFromHistory(i) {
+    document.getElementById('promptEditor').value = history[i].prompt;
+    onEditorInput();
+  }
+
+  function toggleHistory() {
+    const panel = document.getElementById('historyPanel');
+    panel.classList.toggle('open');
+    document.getElementById('histArrow').textContent = panel.classList.contains('open') ? '▴' : '▾';
+  }
+
+  function copyResponse() {
+    navigator.clipboard.writeText(document.getElementById('responseText').textContent).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✓ Copiado';
+      setTimeout(() => btn.textContent = 'Copiar', 1500);
+    });
+  }
+
+  function clearAll() {
+    document.getElementById('promptEditor').value = '';
+    ['var_sujeto','var_escenario','var_estilo','var_iluminacion'].forEach(id => document.getElementById(id).value = '');
+    onEditorInput();
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('responseArea').style.display = 'none';
+    document.getElementById('copyBtn').style.display = 'none';
+    document.getElementById('responseContent').classList.remove('visible');
+    document.getElementById('sceneDescribe').value = '';
+    updatePreview();
+  }
+
+  function openVideoInu() {
+    const prompt = getProcessedPrompt().trim();
+    if (!prompt) { alert('Escribe un prompt primero'); return; }
+    navigator.clipboard.writeText(prompt).catch(() => {});
+    const btn = event.currentTarget;
+    btn.textContent = '✓ Copiado!';
+    setTimeout(() => { btn.textContent = '🎬 WanVideo'; window.open('https://www.freewanvideo.com/', '_blank'); }, 500);
+  }
+
+  onEditorInput();
+</script>
+</body>
+</html>
